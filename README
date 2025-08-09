@@ -1,11 +1,12 @@
-hterm - simple terminal
---------------------
+## hterm - simple terminal
+
 hterm is a simple terminal emulator for X which sucks less.
 This version includes a trackpad navigation feature and a trackpad-based text selection mode.
 
-Features
---------
+## Features
+
 ### Trackpad Navigation
+
 This terminal includes a feature to control the cursor and shell history
 using the trackpad.
 
@@ -20,6 +21,7 @@ using the trackpad.
   - `trackpadInvertX`, `trackpadInvertY`: Invert movement direction.
 
 ### Trackpad Text Selection Mode
+
 Select text using the trackpad without holding mouse buttons.
 
 - Enter selection mode: Click once on the trackpad (left click) inside the terminal.
@@ -29,13 +31,12 @@ Select text using the trackpad without holding mouse buttons.
   - Copy/Paste actions are provided separately via a menu and are not triggered automatically when exiting selection mode.
   - Word/line snapping still works on the initial click based on double/triple-click timing.
 
-Requirements
-------------
+## Requirements
+
 In order to build hterm you need the Xlib header files.
 
+## Installation
 
-Installation
-------------
 Edit config.mk to match your local setup (hterm is installed into
 the /usr/local namespace by default).
 
@@ -44,9 +45,8 @@ necessary as root):
 
     make clean install
 
+## Running hterm
 
-Running hterm
--------------
 If you did not install hterm with make clean install, you must compile
 the st terminfo entry with the following command:
 
@@ -54,6 +54,6 @@ the st terminfo entry with the following command:
 
 See the man page for additional details.
 
-Credits
--------
+## Credits
+
 Based on Aurélien APTEL <aurelien dot aptel at gmail dot com> bt source code.

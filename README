@@ -1,27 +1,43 @@
-st - simple terminal
+hterm - simple terminal
 --------------------
-st is a simple terminal emulator for X which sucks less.
+hterm is a simple terminal emulator for X which sucks less.
+This version includes a trackpad navigation feature.
 
+Features
+--------
+### Trackpad Navigation
+This terminal includes a feature to control the cursor and shell history
+using the trackpad.
+
+- **How it works:** When the terminal window is in focus, the mouse
+  pointer will disappear, and trackpad movements will be translated
+  into arrow key presses. This allows for keyboard-free cursor
+  movement and history navigation.
+- **Configuration:** The feature can be configured at compile-time by
+  editing the `config.def.h` file. The following options are available:
+  - `trackpadRemap`: (0 or 1) Enable or disable the feature.
+  - `trackpadThresholdX`, `trackpadThresholdY`: Sensitivity for movement.
+  - `trackpadInvertX`, `trackpadInvertY`: Invert movement direction.
 
 Requirements
 ------------
-In order to build st you need the Xlib header files.
+In order to build hterm you need the Xlib header files.
 
 
 Installation
 ------------
-Edit config.mk to match your local setup (st is installed into
+Edit config.mk to match your local setup (hterm is installed into
 the /usr/local namespace by default).
 
-Afterwards enter the following command to build and install st (if
+Afterwards enter the following command to build and install hterm (if
 necessary as root):
 
     make clean install
 
 
-Running st
-----------
-If you did not install st with make clean install, you must compile
+Running hterm
+-------------
+If you did not install hterm with make clean install, you must compile
 the st terminfo entry with the following command:
 
     tic -sx st.info
@@ -31,4 +47,3 @@ See the man page for additional details.
 Credits
 -------
 Based on Aurélien APTEL <aurelien dot aptel at gmail dot com> bt source code.
-

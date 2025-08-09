@@ -176,6 +176,7 @@ static int mouseaction(XEvent *, uint);
 static void brelease(XEvent *);
 static void bpress(XEvent *);
 static void bmotion(XEvent *);
+static void trackpadmotion(XEvent *);
 static void propnotify(XEvent *);
 static void selnotify(XEvent *);
 static void selclear_(XEvent *);
@@ -253,6 +254,16 @@ static char *opt_name  = NULL;
 static char *opt_title = NULL;
 
 static uint buttons; /* bit field of pressed buttons */
+
+/* Trackpad-based cursor and history navigation */
+static int trackpad_dx = 0;
+static int trackpad_dy = 0;
+static int last_mouse_x = 0;
+static int last_mouse_y = 0;
+static int trackpad_reset_pos = 0;
+
+static Cursor normal_cursor;
+static Cursor blank_cursor;
 
 void
 clipcopy(const Arg *dummy)
@@ -714,8 +725,59 @@ brelease(XEvent *e)
 }
 
 void
+trackpadmotion(XEvent *e)
+{
+	if (trackpad_reset_pos) {
+		last_mouse_x = e->xmotion.x;
+		last_mouse_y = e->xmotion.y;
+		trackpad_reset_pos = 0;
+		return;
+	}
+
+	int dx = e->xmotion.x - last_mouse_x;
+	int dy = e->xmotion.y - last_mouse_y;
+
+	last_mouse_x = e->xmotion.x;
+	last_mouse_y = e->xmotion.y;
+
+	if (trackpadInvertX)
+		dx = -dx;
+	if (trackpadInvertY)
+		dy = -dy;
+
+	if (abs(dx) > abs(dy)) {
+		trackpad_dx += dx;
+		trackpad_dy = 0;
+	} else {
+		trackpad_dy += dy;
+		trackpad_dx = 0;
+	}
+
+	if (trackpad_dx > trackpadThresholdX) {
+		ttywrite("\033[C", 3, 1); /* Right arrow */
+		trackpad_dx = 0;
+	} else if (trackpad_dx < -trackpadThresholdX) {
+		ttywrite("\033[D", 3, 1); /* Left arrow */
+		trackpad_dx = 0;
+	}
+
+	if (trackpad_dy > trackpadThresholdY) {
+		ttywrite("\033[B", 3, 1); /* Down arrow */
+		trackpad_dy = 0;
+	} else if (trackpad_dy < -trackpadThresholdY) {
+		ttywrite("\033[A", 3, 1); /* Up arrow */
+		trackpad_dy = 0;
+	}
+}
+
+void
 bmotion(XEvent *e)
 {
+	if (IS_SET(MODE_TRACKPAD)) {
+		trackpadmotion(e);
+		return;
+	}
+
 	if (IS_SET(MODE_MOUSE) && !(e->xbutton.state & forcemousemod)) {
 		mousereport(e);
 		return;
@@ -1130,7 +1192,6 @@ void
 xinit(int cols, int rows)
 {
 	XGCValues gcvalues;
-	Cursor cursor;
 	Window parent;
 	pid_t thispid = getpid();
 	XColor xmousefg, xmousebg;
@@ -1197,8 +1258,8 @@ xinit(int cols, int rows)
 	}
 
 	/* white cursor, black outline */
-	cursor = XCreateFontCursor(xw.dpy, mouseshape);
-	XDefineCursor(xw.dpy, xw.win, cursor);
+	normal_cursor = XCreateFontCursor(xw.dpy, mouseshape);
+	XDefineCursor(xw.dpy, xw.win, normal_cursor);
 
 	if (XParseColor(xw.dpy, xw.cmap, colorname[mousefg], &xmousefg) == 0) {
 		xmousefg.red   = 0xffff;
@@ -1212,7 +1273,17 @@ xinit(int cols, int rows)
 		xmousebg.blue  = 0x0000;
 	}
 
-	XRecolorCursor(xw.dpy, cursor, &xmousefg, &xmousebg);
+	XRecolorCursor(xw.dpy, normal_cursor, &xmousefg, &xmousebg);
+
+	/* create blank cursor */
+	Pixmap blank;
+	XColor dummy;
+	static char data[] = {0};
+	blank = XCreateBitmapFromData(xw.dpy, xw.win, data, 1, 1);
+	if (blank == None)
+		die("could not create blank cursor");
+	blank_cursor = XCreatePixmapCursor(xw.dpy, blank, blank, &dummy, &dummy, 0, 0);
+	XFreePixmap(xw.dpy, blank);
 
 	xw.xembed = XInternAtom(xw.dpy, "_XEMBED", False);
 	xw.wmdeletewin = XInternAtom(xw.dpy, "WM_DELETE_WINDOW", False);
@@ -1783,12 +1854,25 @@ focus(XEvent *ev)
 		xseturgency(0);
 		if (IS_SET(MODE_FOCUS))
 			ttywrite("\033[I", 3, 0);
+		if (trackpadRemap) {
+			win.mode |= MODE_TRACKPAD;
+			trackpad_reset_pos = 1;
+			XGrabPointer(xw.dpy, xw.win, False, PointerMotionMask,
+			             GrabModeAsync, GrabModeAsync, None, blank_cursor, CurrentTime);
+		}
 	} else {
 		if (xw.ime.xic)
 			XUnsetICFocus(xw.ime.xic);
 		win.mode &= ~MODE_FOCUSED;
 		if (IS_SET(MODE_FOCUS))
 			ttywrite("\033[O", 3, 0);
+		if (trackpadRemap) {
+			win.mode &= ~MODE_TRACKPAD;
+			trackpad_dx = 0;
+			trackpad_dy = 0;
+			XUngrabPointer(xw.dpy, CurrentTime);
+			XDefineCursor(xw.dpy, xw.win, normal_cursor);
+		}
 	}
 }
 

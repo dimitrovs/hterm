@@ -183,6 +183,15 @@ static MouseShortcut mshortcuts[] = {
 	{ XK_ANY_MOD,           Button5, ttysend,        {.s = "\005"} },
 };
 
+/*
+ * Trackpad-based cursor and history navigation
+ */
+static int trackpadRemap = 1; /* 0: disabled, 1: enabled */
+static int trackpadThresholdX = 10;
+static int trackpadThresholdY = 10;
+static int trackpadInvertX = 0; /* 0: normal, 1: inverted */
+static int trackpadInvertY = 0; /* 0: normal, 1: inverted */
+
 /* Internal keyboard shortcuts. */
 #define MODKEY Mod1Mask
 #define TERMMOD (ControlMask|ShiftMask)

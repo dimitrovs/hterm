@@ -20,6 +20,8 @@ enum win_mode {
 	MODE_BRCKTPASTE  = 1 << 16,
 	MODE_NUMLOCK     = 1 << 17,
 	MODE_TRACKPAD    = 1 << 18,
+		/* Trackpad Text Selection mode: toggled by a Button1 click */
+		MODE_TPSELECT    = 1 << 19,
 	MODE_MOUSE       = MODE_MOUSEBTN|MODE_MOUSEMOTION|MODE_MOUSEX10\
 	                  |MODE_MOUSEMANY,
 };

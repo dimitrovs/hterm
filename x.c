@@ -177,6 +177,7 @@ static void brelease(XEvent *);
 static void bpress(XEvent *);
 static void bmotion(XEvent *);
 static void trackpadmotion(XEvent *);
+static void tpselectmotion(XEvent *);
 static void propnotify(XEvent *);
 static void selnotify(XEvent *);
 static void selclear_(XEvent *);
@@ -486,6 +487,13 @@ bpress(XEvent *e)
 	if (1 <= btn && btn <= 11)
 		buttons |= 1 << (btn-1);
 
+	/* If in trackpad text selection mode, toggle exit on Button1 click */
+	if (IS_SET(MODE_TPSELECT) && btn == Button1) {
+		/* Exit selection mode; keep current selection as-is */
+		win.mode &= ~MODE_TPSELECT;
+		return;
+	}
+
 	if (IS_SET(MODE_MOUSE) && !(e->xbutton.state & forcemousemod)) {
 		mousereport(e);
 		return;
@@ -510,7 +518,9 @@ bpress(XEvent *e)
 		xsel.tclick2 = xsel.tclick1;
 		xsel.tclick1 = now;
 
-		selstart(evcol(e), evrow(e), snap);
+	/* Enter trackpad text selection mode on first click */
+	selstart(evcol(e), evrow(e), snap);
+	win.mode |= MODE_TPSELECT;
 	}
 }
 
@@ -713,6 +723,10 @@ brelease(XEvent *e)
 	if (1 <= btn && btn <= 11)
 		buttons &= ~(1 << (btn-1));
 
+	/* While in Trackpad Text Selection mode, ignore Button1 release to keep selection active */
+	if (IS_SET(MODE_TPSELECT) && btn == Button1)
+		return;
+
 	if (IS_SET(MODE_MOUSE) && !(e->xbutton.state & forcemousemod)) {
 		mousereport(e);
 		return;
@@ -773,6 +787,11 @@ trackpadmotion(XEvent *e)
 void
 bmotion(XEvent *e)
 {
+	if (IS_SET(MODE_TPSELECT)) {
+		tpselectmotion(e);
+		return;
+	}
+
 	if (IS_SET(MODE_TRACKPAD)) {
 		trackpadmotion(e);
 		return;
@@ -783,6 +802,15 @@ bmotion(XEvent *e)
 		return;
 	}
 
+	mousesel(e, 0);
+}
+
+/* Trackpad Text Selection: extend selection with pointer motion */
+void
+tpselectmotion(XEvent *e)
+{
+	/* While in selection mode, extend selection as the pointer moves */
+	/* We use regular selection extension without sending to apps */
 	mousesel(e, 0);
 }
 

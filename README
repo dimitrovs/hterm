@@ -1,7 +1,7 @@
 hterm - simple terminal
 --------------------
 hterm is a simple terminal emulator for X which sucks less.
-This version includes a trackpad navigation feature.
+This version includes a trackpad navigation feature and a trackpad-based text selection mode.
 
 Features
 --------
@@ -18,6 +18,16 @@ using the trackpad.
   - `trackpadRemap`: (0 or 1) Enable or disable the feature.
   - `trackpadThresholdX`, `trackpadThresholdY`: Sensitivity for movement.
   - `trackpadInvertX`, `trackpadInvertY`: Invert movement direction.
+
+### Trackpad Text Selection Mode
+Select text using the trackpad without holding mouse buttons.
+
+- Enter selection mode: Click once on the trackpad (left click) inside the terminal.
+- Extend selection: Move the trackpad; the selection grows left/right and up/down as you move.
+- Exit selection mode: Click once again. The mode is exited and the selected text remains highlighted.
+- Notes:
+  - Copy/Paste actions are provided separately via a menu and are not triggered automatically when exiting selection mode.
+  - Word/line snapping still works on the initial click based on double/triple-click timing.
 
 Requirements
 ------------

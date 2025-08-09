@@ -418,6 +418,12 @@ tlinelen(int y)
 	return i;
 }
 
+int
+selisidle(void)
+{
+	return sel.mode == SEL_IDLE;
+}
+
 void
 selstart(int col, int row, int snap)
 {

@@ -192,6 +192,10 @@ static int trackpadThresholdY = 10;
 static int trackpadInvertX = 0; /* 0: normal, 1: inverted */
 static int trackpadInvertY = 0; /* 0: normal, 1: inverted */
 
+/*
+ * Text selection with the trackpad
+ */
+
 /* Internal keyboard shortcuts. */
 #define MODKEY Mod1Mask
 #define TERMMOD (ControlMask|ShiftMask)

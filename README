@@ -19,6 +19,16 @@ using the trackpad.
   - `trackpadThresholdX`, `trackpadThresholdY`: Sensitivity for movement.
   - `trackpadInvertX`, `trackpadInvertY`: Invert movement direction.
 
+### Text Selection Mode
+A special text selection mode is available to make it easier to select text with the trackpad.
+
+- **How it works:**
+  - A single click on the trackpad (left mouse button) enters text selection mode.
+  - As you move the trackpad, text is selected.
+  - A second click exits text selection mode, leaving the text selected.
+- **Configuration:** This feature can be enabled or disabled at compile-time by editing the `config.def.h` file.
+  - `text_select_mode`: (0 or 1) Enable or disable the feature.
+
 Requirements
 ------------
 In order to build hterm you need the Xlib header files.

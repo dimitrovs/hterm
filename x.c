@@ -63,6 +63,8 @@ static void ttysend(const Arg *);
 /* config.h for applying patches and the configuration. */
 #include "config.h"
 
+int text_select_mode = 1;
+
 /* XEMBED messages */
 #define XEMBED_FOCUS_IN  4
 #define XEMBED_FOCUS_OUT 5
@@ -264,6 +266,10 @@ static int trackpad_reset_pos = 0;
 
 static Cursor normal_cursor;
 static Cursor blank_cursor;
+static Cursor selection_cursor;
+
+/* trackpad selection mode */
+static int selection_mode_active = 0;
 
 void
 clipcopy(const Arg *dummy)
@@ -495,22 +501,46 @@ bpress(XEvent *e)
 		return;
 
 	if (btn == Button1) {
-		/*
-		 * If the user clicks below predefined timeouts specific
-		 * snapping behaviour is exposed.
-		 */
-		clock_gettime(CLOCK_MONOTONIC, &now);
-		if (TIMEDIFF(now, xsel.tclick2) <= tripleclicktimeout) {
-			snap = SNAP_LINE;
-		} else if (TIMEDIFF(now, xsel.tclick1) <= doubleclicktimeout) {
-			snap = SNAP_WORD;
+		if (text_select_mode) {
+			if (selection_mode_active) {
+				mousesel(e, 1);
+				selection_mode_active = 0;
+				XDefineCursor(xw.dpy, xw.win, normal_cursor);
+				if (selisidle())
+					selclear();
+			} else {
+				clock_gettime(CLOCK_MONOTONIC, &now);
+				if (TIMEDIFF(now, xsel.tclick2) <= tripleclicktimeout) {
+					snap = SNAP_LINE;
+				} else if (TIMEDIFF(now, xsel.tclick1) <= doubleclicktimeout) {
+					snap = SNAP_WORD;
+				} else {
+					snap = 0;
+				}
+				xsel.tclick2 = xsel.tclick1;
+				xsel.tclick1 = now;
+				selstart(evcol(e), evrow(e), snap);
+				selection_mode_active = 1;
+				XDefineCursor(xw.dpy, xw.win, selection_cursor);
+			}
 		} else {
-			snap = 0;
-		}
-		xsel.tclick2 = xsel.tclick1;
-		xsel.tclick1 = now;
+			/*
+			 * If the user clicks below predefined timeouts specific
+			 * snapping behaviour is exposed.
+			 */
+			clock_gettime(CLOCK_MONOTONIC, &now);
+			if (TIMEDIFF(now, xsel.tclick2) <= tripleclicktimeout) {
+				snap = SNAP_LINE;
+			} else if (TIMEDIFF(now, xsel.tclick1) <= doubleclicktimeout) {
+				snap = SNAP_WORD;
+			} else {
+				snap = 0;
+			}
+			xsel.tclick2 = xsel.tclick1;
+			xsel.tclick1 = now;
 
-		selstart(evcol(e), evrow(e), snap);
+			selstart(evcol(e), evrow(e), snap);
+		}
 	}
 }
 
@@ -720,8 +750,11 @@ brelease(XEvent *e)
 
 	if (mouseaction(e, 1))
 		return;
-	if (btn == Button1)
+	if (btn == Button1) {
+		if (text_select_mode && selection_mode_active)
+			return;
 		mousesel(e, 1);
+	}
 }
 
 void
@@ -773,6 +806,11 @@ trackpadmotion(XEvent *e)
 void
 bmotion(XEvent *e)
 {
+	if (selection_mode_active) {
+		mousesel(e, 0);
+		return;
+	}
+
 	if (IS_SET(MODE_TRACKPAD)) {
 		trackpadmotion(e);
 		return;
@@ -1259,6 +1297,7 @@ xinit(int cols, int rows)
 
 	/* white cursor, black outline */
 	normal_cursor = XCreateFontCursor(xw.dpy, mouseshape);
+	selection_cursor = XCreateFontCursor(xw.dpy, XC_crosshair);
 	XDefineCursor(xw.dpy, xw.win, normal_cursor);
 
 	if (XParseColor(xw.dpy, xw.cmap, colorname[mousefg], &xmousefg) == 0) {
@@ -1274,6 +1313,7 @@ xinit(int cols, int rows)
 	}
 
 	XRecolorCursor(xw.dpy, normal_cursor, &xmousefg, &xmousebg);
+	XRecolorCursor(xw.dpy, selection_cursor, &xmousefg, &xmousebg);
 
 	/* create blank cursor */
 	Pixmap blank;
@@ -1854,7 +1894,7 @@ focus(XEvent *ev)
 		xseturgency(0);
 		if (IS_SET(MODE_FOCUS))
 			ttywrite("\033[I", 3, 0);
-		if (trackpadRemap) {
+		if (trackpadRemap && !text_select_mode) {
 			win.mode |= MODE_TRACKPAD;
 			trackpad_reset_pos = 1;
 			XGrabPointer(xw.dpy, xw.win, False, PointerMotionMask,
@@ -1872,6 +1912,11 @@ focus(XEvent *ev)
 			trackpad_dy = 0;
 			XUngrabPointer(xw.dpy, CurrentTime);
 			XDefineCursor(xw.dpy, xw.win, normal_cursor);
+		}
+		if (selection_mode_active) {
+			selection_mode_active = 0;
+			XDefineCursor(xw.dpy, xw.win, normal_cursor);
+			selclear();
 		}
 	}
 }

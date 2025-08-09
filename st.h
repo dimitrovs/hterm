@@ -104,6 +104,7 @@ void selstart(int, int, int);
 void selextend(int, int, int, int);
 int selected(int, int);
 char *getsel(void);
+int selisidle(void);
 
 size_t utf8encode(Rune, char *);
 
@@ -124,3 +125,4 @@ extern unsigned int tabspaces;
 extern unsigned int defaultfg;
 extern unsigned int defaultbg;
 extern unsigned int defaultcs;
+extern int text_select_mode;

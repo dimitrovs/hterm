@@ -63,6 +63,8 @@ static void ttysend(const Arg *);
 /* config.h for applying patches and the configuration. */
 #include "config.h"
 
+int text_select_mode = 1;
+
 /* XEMBED messages */
 #define XEMBED_FOCUS_IN  4
 #define XEMBED_FOCUS_OUT 5
@@ -268,7 +270,6 @@ static Cursor selection_cursor;
 
 /* trackpad selection mode */
 static int selection_mode_active = 0;
-static int text_select_mode = 1;
 
 void
 clipcopy(const Arg *dummy)
@@ -1893,7 +1894,7 @@ focus(XEvent *ev)
 		xseturgency(0);
 		if (IS_SET(MODE_FOCUS))
 			ttywrite("\033[I", 3, 0);
-		if (trackpadRemap) {
+		if (trackpadRemap && !text_select_mode) {
 			win.mode |= MODE_TRACKPAD;
 			trackpad_reset_pos = 1;
 			XGrabPointer(xw.dpy, xw.win, False, PointerMotionMask,

@@ -262,6 +262,9 @@ static int last_mouse_x = 0;
 static int last_mouse_y = 0;
 static int trackpad_reset_pos = 0;
 
+static Cursor normal_cursor;
+static Cursor blank_cursor;
+
 void
 clipcopy(const Arg *dummy)
 {
@@ -1184,7 +1187,6 @@ void
 xinit(int cols, int rows)
 {
 	XGCValues gcvalues;
-	Cursor cursor;
 	Window parent;
 	pid_t thispid = getpid();
 	XColor xmousefg, xmousebg;
@@ -1251,8 +1253,8 @@ xinit(int cols, int rows)
 	}
 
 	/* white cursor, black outline */
-	cursor = XCreateFontCursor(xw.dpy, mouseshape);
-	XDefineCursor(xw.dpy, xw.win, cursor);
+	normal_cursor = XCreateFontCursor(xw.dpy, mouseshape);
+	XDefineCursor(xw.dpy, xw.win, normal_cursor);
 
 	if (XParseColor(xw.dpy, xw.cmap, colorname[mousefg], &xmousefg) == 0) {
 		xmousefg.red   = 0xffff;
@@ -1266,7 +1268,17 @@ xinit(int cols, int rows)
 		xmousebg.blue  = 0x0000;
 	}
 
-	XRecolorCursor(xw.dpy, cursor, &xmousefg, &xmousebg);
+	XRecolorCursor(xw.dpy, normal_cursor, &xmousefg, &xmousebg);
+
+	/* create blank cursor */
+	Pixmap blank;
+	XColor dummy;
+	static char data[] = {0};
+	blank = XCreateBitmapFromData(xw.dpy, xw.win, data, 1, 1);
+	if (blank == None)
+		die("could not create blank cursor");
+	blank_cursor = XCreatePixmapCursor(xw.dpy, blank, blank, &dummy, &dummy, 0, 0);
+	XFreePixmap(xw.dpy, blank);
 
 	xw.xembed = XInternAtom(xw.dpy, "_XEMBED", False);
 	xw.wmdeletewin = XInternAtom(xw.dpy, "WM_DELETE_WINDOW", False);
@@ -1840,6 +1852,8 @@ focus(XEvent *ev)
 		if (trackpadRemap) {
 			win.mode |= MODE_TRACKPAD;
 			trackpad_reset_pos = 1;
+			XGrabPointer(xw.dpy, xw.win, False, PointerMotionMask,
+			             GrabModeAsync, GrabModeAsync, None, blank_cursor, CurrentTime);
 		}
 	} else {
 		if (xw.ime.xic)
@@ -1851,6 +1865,8 @@ focus(XEvent *ev)
 			win.mode &= ~MODE_TRACKPAD;
 			trackpad_dx = 0;
 			trackpad_dy = 0;
+			XUngrabPointer(xw.dpy, CurrentTime);
+			XDefineCursor(xw.dpy, xw.win, normal_cursor);
 		}
 	}
 }

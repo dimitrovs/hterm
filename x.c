@@ -745,8 +745,13 @@ trackpadmotion(XEvent *e)
 	if (trackpadInvertY)
 		dy = -dy;
 
-	trackpad_dx += dx;
-	trackpad_dy += dy;
+	if (abs(dx) > abs(dy)) {
+		trackpad_dx += dx;
+		trackpad_dy = 0;
+	} else {
+		trackpad_dy += dy;
+		trackpad_dx = 0;
+	}
 
 	if (trackpad_dx > trackpadThresholdX) {
 		ttywrite("\033[C", 3, 1); /* Right arrow */

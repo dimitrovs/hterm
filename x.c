@@ -483,6 +483,9 @@ bpress(XEvent *e)
 	struct timespec now;
 	int snap;
 
+	if (IS_SET(MODE_TRACKPAD))
+		trackpad_reset_pos = 1;
+
 	if (1 <= btn && btn <= 11)
 		buttons |= 1 << (btn-1);
 

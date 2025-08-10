@@ -255,6 +255,9 @@ static char *opt_title = NULL;
 
 static uint buttons; /* bit field of pressed buttons */
 
+/* Text selection mode state */
+static int text_selection_mode = 0; /* 0 = off, 1 = on */
+
 /* Trackpad-based cursor and history navigation */
 static int trackpad_dx = 0;
 static int trackpad_dy = 0;
@@ -501,22 +504,32 @@ bpress(XEvent *e)
 		return;
 
 	if (btn == Button1) {
-		/*
-		 * If the user clicks below predefined timeouts specific
-		 * snapping behaviour is exposed.
-		 */
-		clock_gettime(CLOCK_MONOTONIC, &now);
-		if (TIMEDIFF(now, xsel.tclick2) <= tripleclicktimeout) {
-			snap = SNAP_LINE;
-		} else if (TIMEDIFF(now, xsel.tclick1) <= doubleclicktimeout) {
-			snap = SNAP_WORD;
+		/* Toggle text selection mode */
+		if (text_selection_mode == 0) {
+			/* Turn on selection mode and start selection */
+			text_selection_mode = 1;
+			
+			/* Determine snap behavior based on click timing */
+			clock_gettime(CLOCK_MONOTONIC, &now);
+			if (TIMEDIFF(now, xsel.tclick2) <= tripleclicktimeout) {
+				snap = SNAP_LINE;
+			} else if (TIMEDIFF(now, xsel.tclick1) <= doubleclicktimeout) {
+				snap = SNAP_WORD;
+			} else {
+				snap = 0;
+			}
+			xsel.tclick2 = xsel.tclick1;
+			xsel.tclick1 = now;
+			
+			/* Start selection at click position */
+			selstart(evcol(e), evrow(e), snap);
 		} else {
-			snap = 0;
+			/* Turn off selection mode and finalize selection */
+			text_selection_mode = 0;
+			
+			/* Finalize the current selection (equivalent to mouse button release) */
+			mousesel(e, 1);
 		}
-		xsel.tclick2 = xsel.tclick1;
-		xsel.tclick1 = now;
-
-		selstart(evcol(e), evrow(e), snap);
 	}
 }
 
@@ -727,8 +740,6 @@ brelease(XEvent *e)
 	if (mouseaction(e, 1))
 		return;
 	if (btn == Button1) {
-		mousesel(e, 1);
-		
 		/* Re-enable trackpad mode if no buttons are pressed and trackpad is enabled */
 		if (trackpadRemap && buttons == 0 && IS_SET(MODE_FOCUSED)) {
 			XGrabPointer(xw.dpy, xw.win, False, PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
@@ -796,7 +807,10 @@ bmotion(XEvent *e)
 		return;
 	}
 
-	mousesel(e, 0);
+	/* Only select text if we're in text selection mode */
+	if (text_selection_mode) {
+		mousesel(e, 0);
+	}
 }
 
 void

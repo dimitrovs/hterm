@@ -1857,7 +1857,8 @@ focus(XEvent *ev)
 		if (trackpadRemap) {
 			win.mode |= MODE_TRACKPAD;
 			trackpad_reset_pos = 1;
-			XGrabPointer(xw.dpy, xw.win, False, PointerMotionMask,
+			XGrabPointer(xw.dpy, xw.win, False,
+			             PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
 			             GrabModeAsync, GrabModeAsync, None, blank_cursor, CurrentTime);
 		}
 	} else {

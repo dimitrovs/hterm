@@ -773,7 +773,7 @@ trackpadmotion(XEvent *e)
 void
 bmotion(XEvent *e)
 {
-	if (IS_SET(MODE_TRACKPAD)) {
+	if (IS_SET(MODE_TRACKPAD) && !(e->xmotion.state & Button1Mask)) {
 		trackpadmotion(e);
 		return;
 	}

@@ -254,6 +254,7 @@ static char *opt_name  = NULL;
 static char *opt_title = NULL;
 
 static uint buttons; /* bit field of pressed buttons */
+static int selection_toggled = 0;
 
 /* Trackpad-based cursor and history navigation */
 static int trackpad_dx = 0;
@@ -495,22 +496,28 @@ bpress(XEvent *e)
 		return;
 
 	if (btn == Button1) {
-		/*
-		 * If the user clicks below predefined timeouts specific
-		 * snapping behaviour is exposed.
-		 */
-		clock_gettime(CLOCK_MONOTONIC, &now);
-		if (TIMEDIFF(now, xsel.tclick2) <= tripleclicktimeout) {
-			snap = SNAP_LINE;
-		} else if (TIMEDIFF(now, xsel.tclick1) <= doubleclicktimeout) {
-			snap = SNAP_WORD;
+		if (selection_toggled) {
+			mousesel(e, 1);
+			selection_toggled = 0;
 		} else {
-			snap = 0;
-		}
-		xsel.tclick2 = xsel.tclick1;
-		xsel.tclick1 = now;
+			/*
+			 * If the user clicks below predefined timeouts specific
+			 * snapping behaviour is exposed.
+			 */
+			clock_gettime(CLOCK_MONOTONIC, &now);
+			if (TIMEDIFF(now, xsel.tclick2) <= tripleclicktimeout) {
+				snap = SNAP_LINE;
+			} else if (TIMEDIFF(now, xsel.tclick1) <= doubleclicktimeout) {
+				snap = SNAP_WORD;
+			} else {
+				snap = 0;
+			}
+			xsel.tclick2 = xsel.tclick1;
+			xsel.tclick1 = now;
 
-		selstart(evcol(e), evrow(e), snap);
+			selstart(evcol(e), evrow(e), snap);
+			selection_toggled = 1;
+		}
 	}
 }
 
@@ -720,8 +727,6 @@ brelease(XEvent *e)
 
 	if (mouseaction(e, 1))
 		return;
-	if (btn == Button1)
-		mousesel(e, 1);
 }
 
 void
@@ -783,7 +788,8 @@ bmotion(XEvent *e)
 		return;
 	}
 
-	mousesel(e, 0);
+	if (selection_toggled)
+		mousesel(e, 0);
 }
 
 void

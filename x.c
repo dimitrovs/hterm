@@ -486,6 +486,12 @@ bpress(XEvent *e)
 	if (1 <= btn && btn <= 11)
 		buttons |= 1 << (btn-1);
 
+	/* Temporarily disable trackpad mode during mouse interactions */
+	if (IS_SET(MODE_TRACKPAD) && btn == Button1) {
+		XUngrabPointer(xw.dpy, CurrentTime);
+		XDefineCursor(xw.dpy, xw.win, normal_cursor);
+	}
+
 	if (IS_SET(MODE_MOUSE) && !(e->xbutton.state & forcemousemod)) {
 		mousereport(e);
 		return;
@@ -720,8 +726,15 @@ brelease(XEvent *e)
 
 	if (mouseaction(e, 1))
 		return;
-	if (btn == Button1)
+	if (btn == Button1) {
 		mousesel(e, 1);
+		
+		/* Re-enable trackpad mode if no buttons are pressed and trackpad is enabled */
+		if (trackpadRemap && buttons == 0 && IS_SET(MODE_FOCUSED)) {
+			XGrabPointer(xw.dpy, xw.win, False, PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
+			             GrabModeAsync, GrabModeAsync, None, blank_cursor, CurrentTime);
+		}
+	}
 }
 
 void
@@ -1857,7 +1870,7 @@ focus(XEvent *ev)
 		if (trackpadRemap) {
 			win.mode |= MODE_TRACKPAD;
 			trackpad_reset_pos = 1;
-			XGrabPointer(xw.dpy, xw.win, False, PointerMotionMask,
+			XGrabPointer(xw.dpy, xw.win, False, PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
 			             GrabModeAsync, GrabModeAsync, None, blank_cursor, CurrentTime);
 		}
 	} else {

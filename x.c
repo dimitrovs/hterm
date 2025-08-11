@@ -483,6 +483,9 @@ bpress(XEvent *e)
 	struct timespec now;
 	int snap;
 
+	if (IS_SET(MODE_TRACKPAD))
+		trackpad_reset_pos = 1;
+
 	if (1 <= btn && btn <= 11)
 		buttons |= 1 << (btn-1);
 
@@ -773,7 +776,7 @@ trackpadmotion(XEvent *e)
 void
 bmotion(XEvent *e)
 {
-	if (IS_SET(MODE_TRACKPAD)) {
+	if (IS_SET(MODE_TRACKPAD) && !(e->xmotion.state & Button1Mask)) {
 		trackpadmotion(e);
 		return;
 	}
@@ -1857,7 +1860,8 @@ focus(XEvent *ev)
 		if (trackpadRemap) {
 			win.mode |= MODE_TRACKPAD;
 			trackpad_reset_pos = 1;
-			XGrabPointer(xw.dpy, xw.win, False, PointerMotionMask,
+			XGrabPointer(xw.dpy, xw.win, False,
+			             PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
 			             GrabModeAsync, GrabModeAsync, None, blank_cursor, CurrentTime);
 		}
 	} else {

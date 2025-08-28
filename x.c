@@ -255,6 +255,14 @@ static char *opt_title = NULL;
 
 static uint buttons; /* bit field of pressed buttons */
 
+static int text_selection_mode = 0;
+static int selection_start_x = 0;
+static int selection_start_y = 0;
+static int selection_anchor_x = 0;
+static int selection_anchor_y = 0;
+static struct timespec last_click_time;
+static int click_count = 0;
+
 /* Trackpad-based cursor and history navigation */
 static int trackpad_dx = 0;
 static int trackpad_dy = 0;
@@ -486,6 +494,41 @@ bpress(XEvent *e)
 	if (1 <= btn && btn <= 11)
 		buttons |= 1 << (btn-1);
 
+	/* Handle text selection mode for left click (Button1) */
+	if (btn == Button1 && !IS_SET(MODE_MOUSE)) {
+		clock_gettime(CLOCK_MONOTONIC, &now);
+
+		/* Check if we're in text selection mode */
+		if (text_selection_mode) {
+			/* Exit text selection mode on second click */
+			text_selection_mode = 0;
+			/* Keep the selection */
+			setsel(getsel(), e->xbutton.time);
+			return;
+		} else {
+			/* Enter text selection mode on first click */
+			text_selection_mode = 1;
+
+			/* Clear any existing selection */
+			selclear();
+
+			/* Store the starting position */
+			selection_start_x = evcol(e);
+			selection_start_y = evrow(e);
+			selection_anchor_x = selection_start_x;
+			selection_anchor_y = selection_start_y;
+
+			/* Start selection at current position */
+			selstart(selection_start_x, selection_start_y, 0);
+
+			/* Store click time for potential double/triple click detection */
+			last_click_time = now;
+
+			return;
+		}
+	}
+
+	/* Original mouse handling code for other cases */
 	if (IS_SET(MODE_MOUSE) && !(e->xbutton.state & forcemousemod)) {
 		mousereport(e);
 		return;
@@ -494,11 +537,8 @@ bpress(XEvent *e)
 	if (mouseaction(e, 0))
 		return;
 
-	if (btn == Button1) {
-		/*
-		 * If the user clicks below predefined timeouts specific
-		 * snapping behaviour is exposed.
-		 */
+	/* Original Button1 handling when not in text selection mode */
+	if (btn == Button1 && !text_selection_mode) {
 		clock_gettime(CLOCK_MONOTONIC, &now);
 		if (TIMEDIFF(now, xsel.tclick2) <= tripleclicktimeout) {
 			snap = SNAP_LINE;
@@ -773,17 +813,39 @@ trackpadmotion(XEvent *e)
 void
 bmotion(XEvent *e)
 {
+	/* Handle text selection mode */
+	if (text_selection_mode) {
+		int current_x = evcol(e);
+		int current_y = evrow(e);
+
+		/* Extend selection to current mouse position */
+		selextend(current_x, current_y, SEL_REGULAR, 0);
+
+		/* Trigger redraw to show selection */
+		draw();
+		return;
+	}
+
+	/* Original trackpad motion handling */
 	if (IS_SET(MODE_TRACKPAD)) {
 		trackpadmotion(e);
 		return;
 	}
 
+	/* Original mouse motion handling */
 	if (IS_SET(MODE_MOUSE) && !(e->xbutton.state & forcemousemod)) {
 		mousereport(e);
 		return;
 	}
 
 	mousesel(e, 0);
+}
+
+/* Add a helper function to check if we're in text selection mode */
+int
+is_text_selection_mode(void)
+{
+	return text_selection_mode;
 }
 
 void
@@ -1873,6 +1935,8 @@ focus(XEvent *ev)
 			XUngrabPointer(xw.dpy, CurrentTime);
 			XDefineCursor(xw.dpy, xw.win, normal_cursor);
 		}
+		/* Cancel text selection mode on focus loss */
+		text_selection_mode = 0;
 	}
 }
 
@@ -1930,6 +1994,24 @@ kpress(XEvent *ev)
 	Status status;
 	Shortcut *bp;
 
+	/* Cancel text selection mode on Escape key */
+	if (text_selection_mode) {
+		if (xw.ime.xic) {
+			len = XmbLookupString(xw.ime.xic, e, buf, sizeof buf, &ksym, &status);
+			if (status == XBufferOverflow)
+				return;
+		} else {
+			len = XLookupString(e, buf, sizeof buf, &ksym, NULL);
+		}
+
+		if (ksym == XK_Escape) {
+			text_selection_mode = 0;
+			selclear();
+			return;
+		}
+	}
+
+	/* Original kpress code continues... */
 	if (IS_SET(MODE_KBDLOCK))
 		return;
 
@@ -1940,6 +2022,7 @@ kpress(XEvent *ev)
 	} else {
 		len = XLookupString(e, buf, sizeof buf, &ksym, NULL);
 	}
+
 	/* 1. shortcuts */
 	for (bp = shortcuts; bp < shortcuts + LEN(shortcuts); bp++) {
 		if (ksym == bp->keysym && match(bp->mod, e->state)) {
